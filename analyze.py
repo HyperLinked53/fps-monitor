@@ -26,24 +26,29 @@ def _bar_color_bgr(ms: float) -> tuple[int, int, int]:
 def build_hud_frame(fps: int, frametime_ms: float,
                     history: list[float],
                     width: int = HUD_W,
-                    height: int = HUD_H) -> np.ndarray:
-    img = np.zeros((height, width, 3), dtype=np.uint8)
+                    height: int = HUD_H,
+                    scale: float = 2.0) -> np.ndarray:
+    w = int(width * scale)
+    h = int(height * scale)
+    img = np.zeros((h, w, 3), dtype=np.uint8)
 
-    # FPS text
     fps_color = (
         (255, 255, 255) if fps >= 50
         else (0, 204, 255) if fps >= 30
         else (68, 68, 255)
     )
-    cv2.putText(img, f'{fps} FPS', (8, 30),
-                cv2.FONT_HERSHEY_DUPLEX, 0.9, fps_color, 1, cv2.LINE_AA)
+    font_scale = 0.9 * scale
+    text_y = int(30 * scale)
+    thickness = max(1, int(scale))
+    cv2.putText(img, f'{fps} FPS', (int(8 * scale), text_y),
+                cv2.FONT_HERSHEY_DUPLEX, font_scale, fps_color, thickness, cv2.LINE_AA)
 
-    # Frametime graph area
-    gx, gy = 6, 36
-    gw, gh = width - 12, height - 42
+    gx = int(6 * scale)
+    gy = int(36 * scale)
+    gw = w - int(12 * scale)
+    gh = h - int(42 * scale)
     bar_w = gw / HISTORY_SIZE
 
-    # Grid lines at 60fps (16.7ms) and 30fps (33.3ms)
     for target_ms in (16.7, 33.3):
         line_y = gy + gh - int((target_ms / MAX_FRAMETIME_MS) * gh)
         cv2.line(img, (gx, line_y), (gx + gw, line_y), (60, 60, 60), 1)
@@ -61,16 +66,18 @@ def build_hud_frame(fps: int, frametime_ms: float,
 
 
 def draw_hud(frame: np.ndarray, fps: int, frametime_ms: float,
-             history: list[float], position: str = 'top-right') -> np.ndarray:
+             history: list[float], position: str = 'top-right',
+             scale: float = 2.0) -> np.ndarray:
     fh, fw = frame.shape[:2]
-    hud = build_hud_frame(fps, frametime_ms, history)
+    hud = build_hud_frame(fps, frametime_ms, history, scale=scale)
     hh, hw = hud.shape[:2]
+    margin = int(MARGIN * scale)
 
     positions = {
-        'top-right':    (fw - hw - MARGIN, MARGIN),
-        'top-left':     (MARGIN, MARGIN),
-        'bottom-right': (fw - hw - MARGIN, fh - hh - MARGIN),
-        'bottom-left':  (MARGIN, fh - hh - MARGIN),
+        'top-right':    (fw - hw - margin, margin),
+        'top-left':     (margin, margin),
+        'bottom-right': (fw - hw - margin, fh - hh - margin),
+        'bottom-left':  (margin, fh - hh - margin),
     }
     x, y = positions.get(position, positions['top-right'])
 
@@ -81,7 +88,7 @@ def draw_hud(frame: np.ndarray, fps: int, frametime_ms: float,
 
 
 def analyze(input_path: str, output_path: str,
-            threshold: float | None, position: str) -> None:
+            threshold: float | None, position: str, scale: float = 2.0) -> None:
     cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
         print(f'[ERROR] Cannot open: {input_path}')
@@ -125,7 +132,7 @@ def analyze(input_path: str, output_path: str,
                 frametime_ms = result['frametime_ms']
                 history.append(frametime_ms)
 
-            frame = draw_hud(frame, fps, frametime_ms, list(history), position)
+            frame = draw_hud(frame, fps, frametime_ms, list(history), position, scale)
             out.write(frame)
 
             if frame_idx % 300 == 0 and total:
@@ -148,10 +155,12 @@ if __name__ == '__main__':
     parser.add_argument('--position', default='top-right',
                         choices=['top-right', 'top-left', 'bottom-right', 'bottom-left'],
                         help='HUD corner (default: top-right)')
+    parser.add_argument('--scale', type=float, default=2.0,
+                        help='HUD size multiplier (default: 2.0, use 1.0 for original size)')
     args = parser.parse_args()
 
     if args.out is None:
         base, _ = os.path.splitext(args.input)
         args.out = base + '_annotated.mp4'
 
-    analyze(args.input, args.out, args.threshold, args.position)
+    analyze(args.input, args.out, args.threshold, args.position, args.scale)
