@@ -4,7 +4,7 @@ import cv2
 
 
 class FrameAnalyzer:
-    def __init__(self, threshold: float = 1.0):
+    def __init__(self, threshold: float = 0.3):
         self.threshold = threshold
         self._prev_gray: np.ndarray | None = None
         self._new_frame_timestamps: deque[float] = deque()

@@ -124,7 +124,7 @@ Progress is printed every 300 frames:
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--out <path>` | `<input>_annotated.mp4` | Override the output file path |
-| `--threshold <float>` | `1.0` | Frame difference sensitivity. Lower = more sensitive (may false-positive on noisy/grainy footage). Raise to 2.0–3.0 if seeing too many duplicate frames flagged as new. |
+| `--threshold <float>` | `0.3` | Frame difference sensitivity. Lower = more sensitive (may false-positive on noisy/grainy footage). Raise if FPS reads too high on grainy footage. |
 | `--position` | `top-right` | HUD corner: `top-right`, `top-left`, `bottom-right`, `bottom-left` |
 
 ### Examples
@@ -147,14 +147,14 @@ python analyze.py gameplay.mkv --out output.mp4 --position top-left --threshold 
 
 ## Tuning the Threshold
 
-The `--threshold` controls how different two frames must be before they're counted as a new render. The default of `1.0` works well for most Switch 2 games, but you may need to adjust it:
+The `--threshold` controls how different two frames must be before they're counted as a new render. The default of `0.3` is tuned for clean 60fps capture card output:
 
 | Situation | Recommended threshold |
 |-----------|----------------------|
-| Clean capture, solid colors | 0.5–1.0 (default) |
-| Games with film grain or noise | 2.0–3.0 |
-| FPS reads too high (detecting noise as frames) | Increase |
-| FPS reads too low (missing real frames) | Decrease |
+| Clean capture (default) | 0.3 |
+| FPS reads as half what it should be | Decrease (try 0.1) |
+| Games with film grain or noise | 1.0–2.0 |
+| FPS reads too high (false positives on noise) | Increase |
 
 ---
 

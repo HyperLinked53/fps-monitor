@@ -93,8 +93,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FPS/Frametime OBS overlay server')
     parser.add_argument('--camera', type=int, default=0,
                         help='Camera device index for OBS Virtual Camera (default: 0)')
-    parser.add_argument('--threshold', type=float, default=1.0,
-                        help='Frame difference threshold for new-frame detection (default: 1.0)')
+    parser.add_argument('--threshold', type=float, default=0.3,
+                        help='Frame difference threshold for new-frame detection (default: 0.3)')
     args = parser.parse_args()
 
     try:
