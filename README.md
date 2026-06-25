@@ -147,14 +147,20 @@ python analyze.py gameplay.mkv --out output.mp4 --position top-left --threshold 
 
 ## Tuning the Threshold
 
-The `--threshold` controls how different two frames must be before they're counted as a new render. The default of `0.3` is tuned for clean 60fps capture card output:
+The `--threshold` controls how different two frames must be before they're counted as a new render. The two modes use different defaults because compressed video files have more inter-frame artifacts than a live camera feed:
 
-| Situation | Recommended threshold |
-|-----------|----------------------|
-| Clean capture (default) | 0.3 |
-| FPS reads as half what it should be | Decrease (try 0.1) |
-| Games with film grain or noise | 1.0–2.0 |
-| FPS reads too high (false positives on noise) | Increase |
+| Mode | Default | Why |
+|------|---------|-----|
+| Real-time (`server.py`) | `0.3` | Live camera feed has minimal compression artifacts |
+| Post-processing (`analyze.py`) | `1.0` | H.264/H.265 compression adds artifacts between duplicate frames |
+
+Tuning guide:
+
+| Symptom | Fix |
+|---------|-----|
+| FPS reads as half what it should be | Decrease threshold (try `0.1` for real-time, `0.5` for video) |
+| FPS reads too high (e.g. 50 in a 30fps game) | Increase threshold (try `1.5` or `2.0`) |
+| Games with heavy film grain | Increase threshold |
 
 ---
 

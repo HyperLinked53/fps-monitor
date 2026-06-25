@@ -135,8 +135,8 @@ if __name__ == '__main__':
     parser.add_argument('input', help='Input video file (.mp4, .mkv, etc.)')
     parser.add_argument('--out', default=None,
                         help='Output path (default: <input>_annotated.mp4)')
-    parser.add_argument('--threshold', type=float, default=0.3,
-                        help='Frame difference threshold (default: 0.3)')
+    parser.add_argument('--threshold', type=float, default=1.0,
+                        help='Frame difference threshold (default: 1.0 for compressed video)')
     parser.add_argument('--position', default='top-right',
                         choices=['top-right', 'top-left', 'bottom-right', 'bottom-left'],
                         help='HUD corner (default: top-right)')
