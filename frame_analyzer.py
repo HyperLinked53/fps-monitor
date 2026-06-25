@@ -3,6 +3,53 @@ import numpy as np
 import cv2
 
 
+def detect_threshold(cap: 'cv2.VideoCapture', fps: float,
+                     sample_secs: float = 5.0) -> float:
+    """Sample frames and find the natural gap between compression-artifact
+    diffs (duplicate frames) and real frame diffs. Works on both video files
+    (seeks back to 0 after sampling) and live camera feeds (no seek)."""
+    sample_count = int(fps * sample_secs)
+    diffs = []
+    prev_gray = None
+
+    for _ in range(sample_count):
+        ret, frame = cap.read()
+        if not ret:
+            break
+        small = cv2.resize(frame, (320, 180))
+        gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY).astype(np.float32)
+        if prev_gray is not None:
+            diffs.append(float(np.mean(np.abs(gray - prev_gray))))
+        prev_gray = gray
+
+    # Seek back to start if the source supports it (video files)
+    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+    if len(diffs) < 10:
+        return 1.0
+
+    diffs_sorted = sorted(diffs)
+    n = len(diffs_sorted)
+
+    # Find the largest relative gap in the lower half — the valley between
+    # compression-artifact diffs and real new-frame diffs.
+    best_gap = 0.0
+    threshold = 1.0
+    for i in range(1, n // 2):
+        gap = diffs_sorted[i] - diffs_sorted[i - 1]
+        relative_gap = gap / max(diffs_sorted[i - 1], 0.01)
+        if relative_gap > best_gap and diffs_sorted[i - 1] < 3.0:
+            best_gap = relative_gap
+            threshold = (diffs_sorted[i - 1] + diffs_sorted[i]) / 2
+
+    # No meaningful gap found — all diffs are similar, likely a 60fps game.
+    # Use a threshold just below the 10th percentile.
+    if best_gap < 2.0:
+        threshold = diffs_sorted[n // 10] * 0.5
+
+    return round(max(threshold, 0.1), 2)
+
+
 class FrameAnalyzer:
     def __init__(self, threshold: float = 0.3):
         self.threshold = threshold

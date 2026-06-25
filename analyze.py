@@ -6,7 +6,7 @@ from collections import deque
 import cv2
 import numpy as np
 
-from frame_analyzer import FrameAnalyzer
+from frame_analyzer import FrameAnalyzer, detect_threshold
 
 HUD_W = 212
 HUD_H = 82
@@ -78,53 +78,6 @@ def draw_hud(frame: np.ndarray, fps: int, frametime_ms: float,
     frame[y:y + hh, x:x + hw] = cv2.addWeighted(roi, 0.4, hud, 0.6, 0)
     return frame
 
-
-def detect_threshold(cap: cv2.VideoCapture, fps_in: float,
-                     sample_secs: float = 5.0) -> float:
-    """Sample the first N seconds and find the natural gap between
-    compression-artifact diffs (duplicate frames) and real frame diffs."""
-    sample_count = int(fps_in * sample_secs)
-    diffs = []
-    prev_gray = None
-
-    for _ in range(sample_count):
-        ret, frame = cap.read()
-        if not ret:
-            break
-        small = cv2.resize(frame, (320, 180))
-        gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY).astype(np.float32)
-        if prev_gray is not None:
-            diffs.append(float(np.mean(np.abs(gray - prev_gray))))
-        prev_gray = gray
-
-    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-
-    if len(diffs) < 10:
-        return 1.0
-
-    diffs_sorted = sorted(diffs)
-    n = len(diffs_sorted)
-
-    # Find the largest relative gap in the lower half of diffs.
-    # A 30fps game in a 60fps container has a bimodal distribution:
-    # cluster of low diffs (compression artifacts on duplicates) and
-    # a cluster of higher diffs (actual new frames). The gap between
-    # them is where the threshold should sit.
-    best_gap = 0.0
-    threshold = 1.0
-    for i in range(1, n // 2):
-        gap = diffs_sorted[i] - diffs_sorted[i - 1]
-        relative_gap = gap / max(diffs_sorted[i - 1], 0.01)
-        if relative_gap > best_gap and diffs_sorted[i - 1] < 3.0:
-            best_gap = relative_gap
-            threshold = (diffs_sorted[i - 1] + diffs_sorted[i]) / 2
-
-    # If no meaningful gap found (all diffs are similar = 60fps game),
-    # use a threshold just below the 10th percentile of diffs.
-    if best_gap < 2.0:
-        threshold = diffs_sorted[n // 10] * 0.5
-
-    return round(max(threshold, 0.1), 2)
 
 
 def analyze(input_path: str, output_path: str,

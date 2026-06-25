@@ -9,7 +9,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 import cv2
 
-from frame_analyzer import FrameAnalyzer
+from frame_analyzer import FrameAnalyzer, detect_threshold
 
 try:
     from websockets.server import serve as ws_serve
@@ -52,7 +52,7 @@ def _start_http_server():
     server.serve_forever()
 
 
-def _camera_loop(camera_index: int, threshold: float):
+def _camera_loop(camera_index: int, threshold: float | None):
     cap = cv2.VideoCapture(camera_index)
     if not cap.isOpened():
         print(
@@ -62,9 +62,17 @@ def _camera_loop(camera_index: int, threshold: float):
         return
 
     cap.set(cv2.CAP_PROP_FPS, 60)
-    actual_fps = cap.get(cv2.CAP_PROP_FPS)
-    analyzer = FrameAnalyzer(threshold=threshold)
+    actual_fps = cap.get(cv2.CAP_PROP_FPS) or 60.0
     print(f"[Camera] Reading from device index {camera_index} at {actual_fps:.0f}fps")
+
+    if threshold is None:
+        print("[Calibrate] Sampling 5 seconds to auto-detect threshold — overlay live shortly...")
+        threshold = detect_threshold(cap, actual_fps, sample_secs=5.0)
+        print(f"[Calibrate] Using threshold: {threshold}")
+    else:
+        print(f"[Calibrate] Using threshold: {threshold} (manual)")
+
+    analyzer = FrameAnalyzer(threshold=threshold)
 
     while True:
         ret, frame = cap.read()
@@ -95,8 +103,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FPS/Frametime OBS overlay server')
     parser.add_argument('--camera', type=int, default=0,
                         help='Camera device index for OBS Virtual Camera (default: 0)')
-    parser.add_argument('--threshold', type=float, default=0.3,
-                        help='Frame difference threshold for new-frame detection (default: 0.3)')
+    parser.add_argument('--threshold', type=float, default=None,
+                        help='Frame difference threshold (default: auto-detected from first 5s)')
     args = parser.parse_args()
 
     try:
