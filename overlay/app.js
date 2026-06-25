@@ -1,13 +1,17 @@
 const WS_URL = 'ws://localhost:8765';
 const HISTORY_SIZE = 120;
 const MAX_FRAMETIME_MS = 50;
+const HOLD_MS = 2000;     // hold last valid reading for 2s during static scenes
+const MIN_VALID_FPS = 20; // below this is considered a static/menu scene
 
 const fpsEl = document.getElementById('fps');
 const canvas = document.getElementById('graph');
 const ctx = canvas.getContext('2d');
 
 const history = new Array(HISTORY_SIZE).fill(0);
-let currentFps = 0;
+let displayFps = 0;
+let lastValidFps = 0;
+let lastValidTime = 0;
 let connected = false;
 
 function barColor(ms) {
@@ -39,8 +43,8 @@ function render() {
   });
 
   // FPS color and text
-  fpsEl.style.color = currentFps >= 50 ? '#ffffff' : currentFps >= 30 ? '#ffcc00' : '#ff4444';
-  fpsEl.textContent = connected ? `${currentFps} FPS` : '-- FPS';
+  fpsEl.style.color = displayFps >= 50 ? '#ffffff' : displayFps >= 30 ? '#ffcc00' : '#ff4444';
+  fpsEl.textContent = connected ? `${displayFps} FPS` : '-- FPS';
 
   requestAnimationFrame(render);
 }
@@ -53,7 +57,21 @@ function connect() {
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
-      currentFps = data.fps;
+      const now = Date.now();
+
+      if (data.fps >= MIN_VALID_FPS) {
+        // Good reading — update everything
+        lastValidFps = data.fps;
+        lastValidTime = now;
+        displayFps = data.fps;
+      } else if (lastValidTime && (now - lastValidTime) < HOLD_MS) {
+        // Scene went static (menu/cutscene) — hold last valid reading
+        displayFps = lastValidFps;
+      } else {
+        // Held too long — accept the low reading as real
+        displayFps = data.fps;
+      }
+
       if (data.is_new_frame && data.frametime_ms > 0) {
         history.shift();
         history.push(data.frametime_ms);
