@@ -86,6 +86,10 @@ def analyze(input_path: str, output_path: str,
         print(f'[ERROR] Cannot open: {input_path}')
         sys.exit(1)
 
+    if os.path.abspath(input_path) == os.path.abspath(output_path):
+        print('[ERROR] Input and output paths are the same file.')
+        sys.exit(1)
+
     fps_in = cap.get(cv2.CAP_PROP_FPS) or 60.0
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -101,25 +105,26 @@ def analyze(input_path: str, output_path: str,
 
     print(f'[Analyze] {total} frames @ {fps_in:.1f}fps → {output_path}')
 
-    for frame_idx in range(total):
-        ret, frame = cap.read()
-        if not ret:
-            break
+    try:
+        for frame_idx in range(total):
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-        result = analyzer.process_frame(frame, frame_idx / fps_in)
-        fps = result['fps']
-        if result['is_new_frame']:
-            frametime_ms = result['frametime_ms']
-            history.append(frametime_ms)
+            result = analyzer.process_frame(frame, frame_idx / fps_in)
+            fps = result['fps']
+            if result['is_new_frame']:
+                frametime_ms = result['frametime_ms']
+                history.append(frametime_ms)
 
-        frame = draw_hud(frame, fps, frametime_ms, list(history), position)
-        out.write(frame)
+            frame = draw_hud(frame, fps, frametime_ms, list(history), position)
+            out.write(frame)
 
-        if frame_idx % 300 == 0 and total:
-            print(f'  {frame_idx}/{total} ({frame_idx / total * 100:.0f}%)')
-
-    cap.release()
-    out.release()
+            if frame_idx % 300 == 0 and total:
+                print(f'  {frame_idx}/{total} ({frame_idx / total * 100:.0f}%)')
+    finally:
+        cap.release()
+        out.release()
     print(f'[Done] Saved to {output_path}')
 
 

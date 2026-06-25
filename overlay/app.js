@@ -51,11 +51,15 @@ function connect() {
   ws.onopen = () => { connected = true; };
 
   ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    currentFps = data.fps;
-    if (data.is_new_frame && data.frametime_ms > 0) {
-      history.shift();
-      history.push(data.frametime_ms);
+    try {
+      const data = JSON.parse(event.data);
+      currentFps = data.fps;
+      if (data.is_new_frame && data.frametime_ms > 0) {
+        history.shift();
+        history.push(data.frametime_ms);
+      }
+    } catch (e) {
+      // ignore malformed message
     }
   };
 

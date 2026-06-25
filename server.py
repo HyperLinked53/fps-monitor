@@ -47,7 +47,7 @@ async def _broadcaster():
 def _start_http_server():
     overlay_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'overlay')
     handler = partial(SimpleHTTPRequestHandler, directory=overlay_dir)
-    server = HTTPServer(('', HTTP_PORT), handler)
+    server = HTTPServer(('localhost', HTTP_PORT), handler)
     print(f"[HTTP] Overlay at http://localhost:{HTTP_PORT}")
     server.serve_forever()
 
@@ -83,7 +83,7 @@ async def _main(camera_index: int, threshold: float):
     print("       In OBS: Add Source → Browser → http://localhost:8080")
     print("       Press Ctrl+C to stop.\n")
 
-    async with ws_serve(_ws_handler, '', WEBSOCKET_PORT):
+    async with ws_serve(_ws_handler, 'localhost', WEBSOCKET_PORT):
         await _broadcaster()
 
 
