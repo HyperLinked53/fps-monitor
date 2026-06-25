@@ -61,8 +61,10 @@ def _camera_loop(camera_index: int, threshold: float):
         )
         return
 
+    cap.set(cv2.CAP_PROP_FPS, 60)
+    actual_fps = cap.get(cv2.CAP_PROP_FPS)
     analyzer = FrameAnalyzer(threshold=threshold)
-    print(f"[Camera] Reading from device index {camera_index}")
+    print(f"[Camera] Reading from device index {camera_index} at {actual_fps:.0f}fps")
 
     while True:
         ret, frame = cap.read()
