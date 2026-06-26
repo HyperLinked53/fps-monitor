@@ -1,6 +1,9 @@
 import argparse
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 from collections import deque
 
 import cv2
@@ -110,7 +113,18 @@ def analyze(input_path: str, output_path: str,
     else:
         print(f'[Analyze] Using threshold: {threshold} (manual)')
 
-    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'),
+    has_ffmpeg = shutil.which('ffmpeg') is not None
+
+    # Write video-only to a temp file if ffmpeg is available, so we can
+    # mux the original audio back in afterwards.
+    if has_ffmpeg:
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix='.mp4')
+        os.close(tmp_fd)
+        video_target = tmp_path
+    else:
+        video_target = output_path
+
+    out = cv2.VideoWriter(video_target, cv2.VideoWriter_fourcc(*'mp4v'),
                           fps_in, (w, h))
 
     analyzer = FrameAnalyzer(threshold=threshold)
@@ -140,6 +154,32 @@ def analyze(input_path: str, output_path: str,
     finally:
         cap.release()
         out.release()
+
+    if has_ffmpeg:
+        print('[Audio] Muxing original audio...')
+        result = subprocess.run(
+            [
+                'ffmpeg', '-y',
+                '-i', tmp_path,
+                '-i', input_path,
+                '-c:v', 'copy',
+                '-c:a', 'copy',
+                '-map', '0:v:0',
+                '-map', '1:a:0?',  # '?' makes audio optional (silent source won't error)
+                '-shortest',
+                output_path,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        os.remove(tmp_path)
+        if result.returncode != 0:
+            print(f'[Audio] ffmpeg error:\n{result.stderr}')
+            print('[Audio] Saving video-only fallback instead.')
+            shutil.move(tmp_path if os.path.exists(tmp_path) else video_target, output_path)
+    else:
+        print('[Audio] ffmpeg not found — output has no audio. Install ffmpeg to preserve audio.')
+
     print(f'[Done] Saved to {output_path}')
 
 

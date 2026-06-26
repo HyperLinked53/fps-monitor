@@ -17,6 +17,7 @@ Your capture card sends a fixed 60fps signal to OBS. When a Switch 2 game runs a
 - Python 3.11+
 - OBS Studio with Virtual Camera support
 - A capture card outputting 60fps to OBS
+- ffmpeg (for post-processing with audio — `brew install ffmpeg`)
 
 ---
 
@@ -95,12 +96,12 @@ Press `Ctrl+C` in the terminal to stop the server.
 
 ## Post-Processing: Burn Overlay into a Recording
 
-After you've recorded a session with OBS, you can burn the FPS/frametime overlay directly into the video file.
+After you've recorded a session with OBS, you can burn the FPS/frametime overlay directly into the video file. Audio is preserved automatically if ffmpeg is installed.
 
 ### Basic usage
 
 ```bash
-python analyze.py your_recording.mkv
+python3 analyze.py "your_recording.mkv"
 ```
 
 This reads the video, analyzes every frame, and saves the result as:
@@ -112,10 +113,13 @@ your_recording_annotated.mp4
 Progress is printed every 300 frames:
 
 ```
+[Analyze] Auto-detecting threshold from first 5 seconds...
+[Analyze] Using threshold: 0.62
 [Analyze] 10800 frames @ 60.0fps → your_recording_annotated.mp4
   300/10800 (3%)
   600/10800 (6%)
   ...
+[Audio] Muxing original audio...
 [Done] Saved to your_recording_annotated.mp4
 ```
 
@@ -124,24 +128,29 @@ Progress is printed every 300 frames:
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--out <path>` | `<input>_annotated.mp4` | Override the output file path |
-| `--threshold <float>` | `0.3` | Frame difference sensitivity. Lower = more sensitive (may false-positive on noisy/grainy footage). Raise if FPS reads too high on grainy footage. |
+| `--threshold <float>` | auto-detected | Frame difference sensitivity. Only set manually if auto-detection gives wrong results. |
 | `--position` | `top-right` | HUD corner: `top-right`, `top-left`, `bottom-right`, `bottom-left` |
+| `--scale` | `2.0` | HUD size multiplier. Use `1.0` for original size, `3.0` for even larger. |
 
 ### Examples
 
 ```bash
+# Basic — threshold auto-detected, audio preserved
+python3 analyze.py "gameplay.mkv"
+
 # Save to a specific path
-python analyze.py gameplay.mkv --out gameplay_with_fps.mp4
+python3 analyze.py "gameplay.mkv" --out gameplay_with_fps.mp4
 
-# Place overlay in bottom-left corner
-python analyze.py gameplay.mkv --position bottom-left
+# Bottom-left corner, 3x size
+python3 analyze.py "gameplay.mkv" --position bottom-left --scale 3.0
 
-# Increase threshold for grainy footage
-python analyze.py gameplay.mkv --threshold 2.5
-
-# Combine options
-python analyze.py gameplay.mkv --out output.mp4 --position top-left --threshold 1.5
+# Manual threshold override
+python3 analyze.py "gameplay.mkv" --threshold 1.5
 ```
+
+### Audio
+
+If ffmpeg is installed (`brew install ffmpeg`), the original audio is automatically muxed into the output. If ffmpeg is not found, the output will be video-only.
 
 ---
 
